@@ -31,7 +31,7 @@
   button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:bold}
   button.ghost{background:transparent}
 
-  .app{display:grid;grid-template-columns:400px 1fr;height:calc(100vh - 59px)}
+  .app{display:grid;grid-template-columns:420px 1fr;height:calc(100vh - 59px)}
   @media (max-width:900px){.app{grid-template-columns:1fr;height:auto}}
   aside{overflow-y:auto;border-right:1px solid var(--line);padding:18px 18px 60px}
   main{overflow:auto;padding:22px;background:#0A0A0A}
@@ -40,23 +40,30 @@
   .group > .kicker{display:block;margin-bottom:10px;border-bottom:1px solid var(--line);padding-bottom:6px}
   label.f{display:block;margin-bottom:9px}
   label.f span{display:block;font-size:10px;color:var(--muted);margin-bottom:4px;letter-spacing:.04em}
-  input[type=text],select{width:100%;font-family:inherit;font-size:12px;color:var(--text);
+  input[type=text],select,textarea{width:100%;font-family:inherit;font-size:12px;color:var(--text);
     background:var(--card);border:1px solid var(--line);border-radius:4px;padding:7px 8px}
-  input[type=text]:focus,select:focus{outline:none;border-color:var(--accent)}
-  input::placeholder{color:var(--faint)}
+  textarea{resize:vertical;line-height:1.45}
+  input[type=text]:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+  input::placeholder,textarea::placeholder{color:var(--faint)}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
-  .step{border:1px solid var(--line);border-radius:5px;margin-bottom:8px;background:var(--card);padding:9px}
-  .step.off{opacity:.45}
-  .step.off .body{display:none}
-  .step.p2{border-color:#5a4a3f}
-  .head{display:flex;align-items:center;gap:6px;margin-bottom:7px}
-  .num{font-size:10px;letter-spacing:.1em;color:var(--accent);width:18px;flex:0 0 18px}
-  .head input{flex:1;font-weight:bold}
-  .head select{flex:0 0 104px;font-size:11px;padding:5px 6px}
+  .stg{border:1px solid var(--line);border-left:3px solid var(--accent);
+       border-radius:5px;margin-bottom:10px;background:#141412;padding:9px}
+  .stghead{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+  .stghead .num{font-size:10px;letter-spacing:.1em;color:var(--accent);flex:0 0 18px}
+  .stghead input{flex:1;font-weight:bold;background:transparent;border:none;padding:2px 0;font-size:13px}
+  .stghead input:focus{border-bottom:1px solid var(--accent)}
+
+  .node{border:1px solid var(--line);border-radius:4px;background:var(--card);padding:8px;margin-bottom:7px}
+  .node.off{opacity:.45} .node.off .nbody{display:none}
+  .node.p2{border-color:#5a4a3f}
+  .nhead{display:flex;gap:6px;margin-bottom:6px}
+  .nhead input{flex:1}
+  .nhead select{flex:0 0 100px;font-size:11px;padding:5px 6px}
+  .nbody{display:grid;gap:6px}
   .mini{background:transparent;border:1px solid var(--line);color:var(--muted);
-        padding:4px 6px;line-height:1;font-size:11px;border-radius:3px}
-  .body{display:grid;gap:7px}
+        padding:4px 7px;line-height:1;font-size:11px;border-radius:3px}
+  .rowbtns{display:flex;gap:6px;align-items:center}
   .hint{font-size:11px;color:var(--faint);line-height:1.5;margin-top:6px}
   .seg{display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden}
   .seg button{border:none;border-radius:0;flex:1;background:var(--card)}
@@ -75,7 +82,7 @@
 <header class="top">
   <div class="brand">
     <span class="wordmark">RED<b>O</b></span>
-    <span class="kicker">Stack Mapper &nbsp;·&nbsp; Customer Journey Builder</span>
+    <span class="kicker">Stack Mapper &nbsp;·&nbsp; Systems &amp; Actions Flow</span>
   </div>
   <div class="actions">
     <button class="ghost" id="btnReset">Reset</button>
@@ -91,10 +98,10 @@
     <div class="group">
       <span class="kicker a">Project</span>
       <label class="f"><span>Brand</span><input type="text" id="merchant" value="Acme Outdoors"></label>
-      <label class="f"><span>Commerce platform — retypes every step using the old name</span>
-        <input type="text" id="platform" value="Shopify"></label>
+      <label class="f"><span>Commerce platform — retypes every system still using the old name</span>
+        <input type="text" id="platform" value="Salesforce Commerce Cloud"></label>
       <div class="two">
-        <label class="f"><span>Subtitle</span><input type="text" id="subtitle" value="Returns journey &amp; integration map"></label>
+        <label class="f"><span>Subtitle</span><input type="text" id="subtitle" value="Systems, actions &amp; integration flow"></label>
         <label class="f"><span>Prepared by</span><input type="text" id="prepared" value="Seth Weeks · Redo"></label>
       </div>
       <label class="f"><span>Footer</span><input type="text" id="footer" value="REDO | Private &amp; Confidential"></label>
@@ -105,11 +112,13 @@
     </div>
 
     <div class="group">
-      <span class="kicker a">Journey steps</span>
-      <div id="steps"></div>
-      <button class="ghost" id="btnAdd" style="width:100%;margin-top:4px">+ Add step</button>
-      <div class="hint">Every field is free text. Type "Redo" anywhere in the system field and
-        the step is drawn in Redo orange. Fill "Redo listens for…" to make the step two-way.</div>
+      <span class="kicker a">Stages &amp; systems</span>
+      <div id="stages"></div>
+      <button class="ghost" id="btnAddStage" style="width:100%;margin-top:4px">+ Add stage</button>
+      <div class="hint">A stage is a step in the flow. Put two or more systems in the same
+        stage to branch or to pull from two sources at once. One action per line.
+        <b>Pushes</b> = Redo writes into that system; <b>listens for</b> = that system sends
+        an event back.</div>
     </div>
   </aside>
 
@@ -124,7 +133,7 @@
   <option>Magento</option><option>Commercetools</option><option>WooCommerce</option>
   <option>NetSuite</option><option>Microsoft Dynamics</option><option>SAP</option><option>Custom ERP</option>
   <option>ShipHero</option><option>Manhattan</option><option>3PL (WMS)</option>
-  <option>Klaviyo</option><option>Attentive</option><option>Redo</option>
+  <option>Klaviyo</option><option>Attentive</option><option>Redo</option><option>Redo returns portal</option>
 </datalist>
 
 <script>
@@ -138,20 +147,44 @@ var THEMES = {
           text:"#1A1A18", muted:"#6E6B66", faint:"#9B9A96", accent:"#FF4405", redoCard:"#FDF1EC" }
 };
 var theme = "dark";
-var lastPlatform = "Shopify";
+var lastPlatform = "Salesforce Commerce Cloud";
 
-var DEFAULT_STEPS = [
-  { label:"Coverage offered",        sys:"Shopify",              detail:"Redo coverage shown on the product page and in cart", listens:"", status:"on" },
-  { label:"Orders & products sync",  sys:"Shopify",              detail:"Redo pulls orders, products and variants",            listens:"New and updated orders", status:"on" },
-  { label:"Shopper starts a return", sys:"Redo returns portal",  detail:"Hosted by Redo at returns.brand.com",                 listens:"", status:"on" },
-  { label:"RMA created",             sys:"NetSuite",             detail:"Redo creates the RMA in the ERP on approval",         listens:"Return received / inspection complete", status:"on" },
-  { label:"Return shipped back",     sys:"ShipHero",             detail:"Return is scanned in at the warehouse",               listens:"Scan-in and inspection status", status:"on" },
-  { label:"Outcome processed",       sys:"Shopify",              detail:"Refund, exchange order or store credit issued",       listens:"", status:"on" },
-  { label:"Shopper notified",        sys:"Klaviyo",              detail:"Status emails triggered from Redo events",            listens:"", status:"on" }
+var DEFAULT_STAGES = [
+  { name:"Shopper buys", nodes:[
+    { sys:"Custom storefront", status:"on", listens:"", pushes:"",
+      actions:"Redo coverage displayed on the storefront\nShopper adds coverage\nCoverage added to the order as a line item" }
+  ]},
+  { name:"Order & product sync", nodes:[
+    { sys:"Salesforce Commerce Cloud", status:"on", pushes:"", listens:"New and updated orders",
+      actions:"Redo pulls order information\nOrders are required to create returns" },
+    { sys:"Salesforce Commerce Cloud", status:"on", pushes:"", listens:"Product and inventory updates",
+      actions:"Redo pulls products and variants\nProducts are required for exchanges" }
+  ]},
+  { name:"Return submitted", nodes:[
+    { sys:"Redo returns portal", status:"on", listens:"", pushes:"",
+      actions:"Shopper looks up the order\nPolicy and conditions engine runs\nShopper picks refund or exchange\nReturn submitted" }
+  ]},
+  { name:"RMA created", nodes:[
+    { sys:"NetSuite", status:"on", listens:"", pushes:"RMA created on return submission",
+      actions:"Redo creates the RMA in NetSuite\nRMA holds the return open until receipt" }
+  ]},
+  { name:"Return received", nodes:[
+    { sys:"NetSuite", status:"on", pushes:"", listens:"Item received — RMA processed",
+      actions:"Warehouse receives the item back\nWarehouse processes the RMA in NetSuite\nNetSuite tells Redo the item has been received" }
+  ]},
+  { name:"Redo processes the return", nodes:[
+    { sys:"Redo", status:"on", listens:"", pushes:"",
+      actions:"Return marked received\nOutcome resolved — refund or exchange\nRedo pushes the processing event downstream" }
+  ]},
+  { name:"Outcome pushed", nodes:[
+    { sys:"Adyen", status:"on", listens:"", pushes:"Refund request",
+      actions:"Redo tells Adyen to issue the refund\nRefund returned to the original payment method" },
+    { sys:"Salesforce Commerce Cloud", status:"on", listens:"", pushes:"Exchange order",
+      actions:"Redo creates the exchange order in SFCC\nOrder released to fulfillment" }
+  ]}
 ];
 
-var state = null;
-var meas = document.createElement("canvas").getContext("2d");
+var state=null, meas=document.createElement("canvas").getContext("2d");
 function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 function tw(t,f){ meas.font=f; return meas.measureText(t).width; }
 function wrap(text,font,maxW){
@@ -165,51 +198,64 @@ function wrap(text,font,maxW){
 function today(){ return new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}); }
 
 /* ------------------------------------------------------------------ panel */
-function stepHTML(s,i){
-  var o=function(v,l){ return '<option value="'+v+'"'+(s.status===v?" selected":"")+'>'+l+'</option>'; };
-  return '<div class="step'+(s.status==="off"?" off":"")+(s.status==="p2"?" p2":"")+'">'+
-    '<div class="head">'+
-      '<span class="num">'+(i+1<10?"0":"")+(i+1)+'</span>'+
-      '<input type="text" class="lbl" value="'+esc(s.label)+'" placeholder="Step name">'+
+function nodeHTML(nd){
+  var o=function(v,l){ return '<option value="'+v+'"'+(nd.status===v?" selected":"")+'>'+l+'</option>'; };
+  var rows = Math.min(6, Math.max(2, (nd.actions||"").split("\n").length));
+  return '<div class="node'+(nd.status==="off"?" off":"")+(nd.status==="p2"?" p2":"")+'">'+
+    '<div class="nhead">'+
+      '<input type="text" class="sys" list="systems" value="'+esc(nd.sys)+'" placeholder="System">'+
       '<select class="status">'+o("on","In scope")+o("p2","Phase 2")+o("off","Not in scope")+'</select>'+
     '</div>'+
-    '<div class="body">'+
-      '<input type="text" class="sys" list="systems" value="'+esc(s.sys)+'" placeholder="System — Shopify, their ERP, Redo…">'+
-      '<input type="text" class="detail" value="'+esc(s.detail)+'" placeholder="What happens here">'+
-      '<input type="text" class="listens" value="'+esc(s.listens)+'" placeholder="Redo listens for… (leave blank for one-way)">'+
-      '<div style="display:flex;gap:6px">'+
-        '<button class="mini up">↑</button><button class="mini down">↓</button>'+
-        '<span style="flex:1"></span><button class="mini del">Remove</button>'+
-      '</div>'+
+    '<div class="nbody">'+
+      '<textarea class="acts" rows="'+rows+'" placeholder="One action per line">'+esc(nd.actions)+'</textarea>'+
+      '<input type="text" class="listens" value="'+esc(nd.listens)+'" placeholder="Redo listens for… (event back from this system)">'+
+      '<input type="text" class="pushes" value="'+esc(nd.pushes||"")+'" placeholder="Redo pushes… (event into this system)">'+
+      '<div class="rowbtns"><span style="flex:1"></span><button class="mini delnode">Remove system</button></div>'+
     '</div></div>';
 }
-function buildSteps(list){
-  document.getElementById("steps").innerHTML = list.map(stepHTML).join("");
+function stageHTML(sg,i){
+  return '<div class="stg">'+
+    '<div class="stghead">'+
+      '<span class="num">'+(i+1<10?"0":"")+(i+1)+'</span>'+
+      '<input type="text" class="sname" value="'+esc(sg.name)+'" placeholder="Stage name">'+
+      '<button class="mini up">↑</button><button class="mini down">↓</button>'+
+      '<button class="mini delstage">✕</button>'+
+    '</div>'+
+    '<div class="nodes">'+sg.nodes.map(nodeHTML).join("")+'</div>'+
+    '<button class="mini addnode" style="width:100%;margin-top:2px">+ System (branch)</button>'+
+  '</div>';
 }
+function buildStages(list){ document.getElementById("stages").innerHTML = list.map(stageHTML).join(""); }
+
 function readState(){
-  var steps=[], els=document.querySelectorAll("#steps .step");
-  for(var i=0;i<els.length;i++){
-    var e=els[i];
-    var s={ label:e.querySelector(".lbl").value, sys:e.querySelector(".sys").value,
-            detail:e.querySelector(".detail").value, listens:e.querySelector(".listens").value,
-            status:e.querySelector(".status").value };
-    steps.push(s);
-    e.className="step"+(s.status==="off"?" off":"")+(s.status==="p2"?" p2":"");
+  var stages=[], sEls=document.querySelectorAll("#stages .stg");
+  for(var i=0;i<sEls.length;i++){
+    var sg={ name:sEls[i].querySelector(".sname").value, nodes:[] };
+    var nEls=sEls[i].querySelectorAll(".node");
+    for(var j=0;j<nEls.length;j++){
+      var e=nEls[j];
+      var nd={ sys:e.querySelector(".sys").value, actions:e.querySelector(".acts").value,
+               listens:e.querySelector(".listens").value, pushes:e.querySelector(".pushes").value,
+               status:e.querySelector(".status").value };
+      sg.nodes.push(nd);
+      e.className="node"+(nd.status==="off"?" off":"")+(nd.status==="p2"?" p2":"");
+    }
+    stages.push(sg);
   }
   return { merchant:document.getElementById("merchant").value,
            platform:document.getElementById("platform").value,
            subtitle:document.getElementById("subtitle").value,
            prepared:document.getElementById("prepared").value,
            footer:document.getElementById("footer").value,
-           theme:theme, steps:steps };
+           theme:theme, stages:stages };
 }
 
 /* ------------------------------------------------------------------- draw */
-var W=1680, MARGIN=64, GAP=86, ROW_GAP=74;
-var F_T="bold 17px Arial", F_S="13px Arial", F_D="italic 10.5px Arial", F_L="10.5px Arial";
+var W=1560, MARGIN=56, GUTTER=180, GUTTER_PAD=28, CARD_GAP=26, STAGE_GAP=62, CARD_MAX=600;
+var F_SYS="bold 16px Arial", F_ACT="11.5px Arial", F_LST="10.5px Arial";
 
 function head(x,y,ang,c){
-  var L=10,Wd=4.6;
+  var L=9,Wd=4.2;
   return '<polygon points="'+x+','+y+' '+
     (x-L*Math.cos(ang)+Wd*Math.sin(ang))+','+(y-L*Math.sin(ang)-Wd*Math.cos(ang))+' '+
     (x-L*Math.cos(ang)-Wd*Math.sin(ang))+','+(y-L*Math.sin(ang)+Wd*Math.cos(ang))+'" fill="'+c+'"/>';
@@ -217,124 +263,163 @@ function head(x,y,ang,c){
 
 function renderSVG(st){
   var C=THEMES[st.theme];
-  var steps=st.steps.filter(function(s){ return s.status!=="off"; });
-  var n=steps.length;
-  var perRow = n<=3 ? Math.max(n,1) : (n===4 ? 2 : 3);
-  var cardW = (W - MARGIN*2 - (perRow-1)*GAP)/perRow;
+  var contentX = MARGIN + GUTTER + GUTTER_PAD;
+  var contentW = W - MARGIN - contentX;
 
-  // measure
-  steps.forEach(function(s){
-    s.dLines = s.detail ? wrap(s.detail,F_D,cardW-44).slice(0,3) : [];
-    s.lLines = s.listens ? wrap(s.listens,F_L,cardW-58).slice(0,2) : [];
-    s.h = 96 + s.dLines.length*15 + (s.lLines.length ? 34 + s.lLines.length*14 : 0);
-    s.isRedo = /redo/i.test(s.sys);
-    s.p2 = s.status==="p2";
+  var stages=[];
+  st.stages.forEach(function(sg){
+    var nodes = sg.nodes.filter(function(n){ return n.status!=="off"; });
+    if(nodes.length) stages.push({ name:sg.name, nodes:nodes.map(function(n){
+      return { sys:n.sys, listens:n.listens, pushes:n.pushes, status:n.status,
+               acts:(n.actions||"").split("\n").map(function(a){ return a.trim(); }).filter(Boolean) };
+    })});
   });
 
-  var rows=[];
-  for(var i=0;i<n;i+=perRow) rows.push(steps.slice(i,i+perRow));
-  rows.forEach(function(r){ r.h = Math.max.apply(null, r.map(function(s){ return s.h; })); });
+  // measure
+  stages.forEach(function(sg){
+    var n=sg.nodes.length;
+    sg.cardW = Math.min(CARD_MAX, (contentW-(n-1)*CARD_GAP)/n);
+    sg.nodes.forEach(function(nd){
+      nd.isRedo = /redo/i.test(nd.sys);
+      nd.p2 = nd.status==="p2";
+      nd.aLines=[];
+      nd.acts.forEach(function(a){ nd.aLines = nd.aLines.concat(wrap(a,F_ACT,sg.cardW-58).map(function(l,k){
+        return {t:l, first:k===0};
+      })); });
+      nd.lLines = nd.listens ? wrap(nd.listens,F_LST,sg.cardW-62).slice(0,2) : [];
+      nd.pLines = nd.pushes  ? wrap(nd.pushes ,F_LST,sg.cardW-62).slice(0,2) : [];
+      nd.h = 58 + nd.aLines.length*18
+           + (nd.pLines.length ? 32 + nd.pLines.length*14 : 0)
+           + (nd.lLines.length ? 32 + nd.lLines.length*14 : 0) + 14;
+    });
+    sg.h = Math.max.apply(null, sg.nodes.map(function(nd){ return nd.h; }));
+    sg.totalW = sg.nodes.length*sg.cardW + (sg.nodes.length-1)*CARD_GAP;
+    sg.x0 = contentX + (contentW - sg.totalW)/2;
+  });
 
   var headerH=118, footerH=62;
-  var H = headerH + rows.reduce(function(a,r){ return a+r.h; },0) + (rows.length-1)*ROW_GAP + footerH + 30;
-  if(!n) H = headerH + footerH + 120;
+  var H = headerH + 18 + stages.reduce(function(a,s){ return a+s.h; },0) +
+          Math.max(stages.length-1,0)*STAGE_GAP + footerH + 24;
+  if(!stages.length) H = headerH + footerH + 120;
 
-  var s = '<rect x="0" y="0" width="'+W+'" height="'+H+'" fill="'+C.bg+'"/>';
+  var s='<rect x="0" y="0" width="'+W+'" height="'+H+'" fill="'+C.bg+'"/>';
 
   /* header */
-  var title = st.merchant || "Untitled brand";
-  s += '<text x="'+MARGIN+'" y="52" font-family="Arial" font-size="10" letter-spacing="2.6" fill="'+C.accent+'">REDO RETURNS JOURNEY</text>';
+  var title=st.merchant||"Untitled brand";
+  s += '<text x="'+MARGIN+'" y="52" font-family="Arial" font-size="10" letter-spacing="2.6" fill="'+C.accent+'">REDO SYSTEMS &amp; ACTIONS FLOW</text>';
   s += '<text x="'+MARGIN+'" y="90" font-family="Georgia, serif" font-size="32" fill="'+C.text+'">'+esc(title)+'</text>';
   if(st.subtitle)
-    s += '<text x="'+(MARGIN+tw(title,"32px Georgia")+16)+'" y="90" font-family="Georgia, serif" font-size="16" font-style="italic" fill="'+C.muted+'">'+esc(st.subtitle)+'</text>';
+    s += '<text x="'+(MARGIN+tw(title,"32px Georgia")+16)+'" y="90" font-family="Georgia, serif" font-size="15" font-style="italic" fill="'+C.muted+'">'+esc(st.subtitle)+'</text>';
   s += '<text x="'+(W-MARGIN)+'" y="52" text-anchor="end" font-family="Arial" font-size="10" letter-spacing="1.4" fill="'+C.muted+'">'+esc(today().toUpperCase())+'</text>';
   if(st.prepared)
     s += '<text x="'+(W-MARGIN)+'" y="70" text-anchor="end" font-family="Arial" font-size="10" fill="'+C.faint+'">'+esc(st.prepared)+'</text>';
   s += '<line x1="'+MARGIN+'" y1="'+(headerH-8)+'" x2="'+(W-MARGIN)+'" y2="'+(headerH-8)+'" stroke="'+C.line+'"/>';
 
-  /* cards */
-  var y = headerH + 18, idx = 0, prev = null;
-  rows.forEach(function(row, ri){
-    var rtl = ri % 2 === 1;
-    row.forEach(function(step, ci){
-      var slot = rtl ? (perRow-1-ci) : ci;
-      // keep a short final row anchored to the side the arrow arrives on
-      if(rtl && row.length < perRow) slot = perRow-1-ci;
-      var x = MARGIN + slot*(cardW+GAP);
-      step.x = x; step.y = y; step.w = cardW; step.rtl = rtl;
+  /* stages */
+  var y = headerH + 18;
+  stages.forEach(function(sg,si){
+    sg.y = y;
 
-      var stroke = step.p2 ? C.faint : (step.isRedo ? C.accent : C.line);
-      var fill   = step.isRedo ? C.redoCard : C.card;
-      var dash   = step.p2 ? ' stroke-dasharray="6 4"' : '';
+    /* gutter */
+    s += '<rect x="'+MARGIN+'" y="'+y+'" width="3" height="'+sg.h+'" fill="'+C.accent+'"/>';
+    s += '<text x="'+(MARGIN+16)+'" y="'+(y+20)+'" font-family="Arial" font-size="10" letter-spacing="2" fill="'+C.accent+'">STAGE '+(si+1<10?"0":"")+(si+1)+'</text>';
+    wrap(sg.name||"Untitled stage","19px Georgia",GUTTER-24).slice(0,3).forEach(function(l,k){
+      s += '<text x="'+(MARGIN+16)+'" y="'+(y+48+k*23)+'" font-family="Georgia, serif" font-size="19" fill="'+C.text+'">'+esc(l)+'</text>';
+    });
+    if(sg.nodes.length>1)
+      s += '<text x="'+(MARGIN+16)+'" y="'+(y+sg.h-6)+'" font-family="Arial" font-size="9" letter-spacing="1.3" fill="'+C.faint+'">'+sg.nodes.length+' PARALLEL PATHS</text>';
 
-      s += '<rect x="'+x+'" y="'+y+'" width="'+cardW+'" height="'+row.h+'" rx="8" fill="'+fill+'" stroke="'+stroke+'" stroke-width="'+(step.isRedo?2:1)+'"'+dash+'/>';
-      idx++;
-      s += '<text x="'+(x+22)+'" y="'+(y+30)+'" font-family="Arial" font-size="10" letter-spacing="2" fill="'+(step.p2?C.faint:C.accent)+'">'+(idx<10?"0":"")+idx+(step.p2?"  ·  PHASE 2":"")+'</text>';
-      s += '<text x="'+(x+22)+'" y="'+(y+56)+'" font-family="Arial" font-size="17" font-weight="bold" fill="'+(step.p2?C.muted:C.text)+'">'+esc(step.label)+'</text>';
-      s += '<text x="'+(x+22)+'" y="'+(y+78)+'" font-family="Arial" font-size="13" fill="'+(step.isRedo?C.accent:(step.p2?C.faint:C.muted))+'">'+esc(step.sys)+'</text>';
-      var ty = y+96;
-      step.dLines.forEach(function(l){
-        s += '<text x="'+(x+22)+'" y="'+ty+'" font-family="Arial" font-size="10.5" font-style="italic" fill="'+C.muted+'">'+esc(l)+'</text>';
-        ty += 15;
+    /* cards */
+    sg.nodes.forEach(function(nd,ni){
+      var x = sg.x0 + ni*(sg.cardW+CARD_GAP);
+      nd.cx = x + sg.cardW/2; nd.top = y; nd.bottom = y + sg.h;
+      var stroke = nd.p2 ? C.faint : (nd.isRedo ? C.accent : C.line);
+      var fill   = nd.isRedo ? C.redoCard : C.card;
+      var dash   = nd.p2 ? ' stroke-dasharray="6 4"' : '';
+
+      s += '<rect x="'+x+'" y="'+y+'" width="'+sg.cardW+'" height="'+sg.h+'" rx="8" fill="'+fill+'" stroke="'+stroke+'" stroke-width="'+(nd.isRedo?2:1)+'"'+dash+'/>';
+      s += '<text x="'+(x+22)+'" y="'+(y+26)+'" font-family="Arial" font-size="8.5" letter-spacing="1.6" fill="'+(nd.p2?C.faint:C.muted)+'">SYSTEM'+(nd.p2?"  ·  PHASE 2":"")+'</text>';
+      s += '<text x="'+(x+22)+'" y="'+(y+48)+'" font-family="Arial" font-size="16" font-weight="bold" fill="'+(nd.isRedo?C.accent:(nd.p2?C.muted:C.text))+'">'+esc(nd.sys||"Unspecified")+'</text>';
+      s += '<line x1="'+(x+22)+'" y1="'+(y+60)+'" x2="'+(x+sg.cardW-22)+'" y2="'+(y+60)+'" stroke="'+C.line+'"/>';
+
+      var ty = y + 78;
+      nd.aLines.forEach(function(l){
+        if(l.first)
+          s += '<rect x="'+(x+22)+'" y="'+(ty-8)+'" width="7" height="2" fill="'+(nd.p2?C.faint:C.accent)+'"/>';
+        s += '<text x="'+(x+38)+'" y="'+ty+'" font-family="Arial" font-size="11.5" fill="'+(nd.p2?C.muted:C.text)+'">'+esc(l.t)+'</text>';
+        ty += 18;
       });
-      if(step.lLines.length){
-        ty += 8;
-        s += '<line x1="'+(x+22)+'" y1="'+(ty-8)+'" x2="'+(x+cardW-22)+'" y2="'+(ty-8)+'" stroke="'+C.line+'"/>';
+      [ {lines:nd.pLines, label:"REDO PUSHES", out:true},
+        {lines:nd.lLines, label:"REDO LISTENS FOR", out:false} ].forEach(function(blk){
+        if(!blk.lines.length) return;
+        var mk = nd.p2 ? C.faint : C.accent;
+        ty += 6;
+        s += '<line x1="'+(x+22)+'" y1="'+(ty-8)+'" x2="'+(x+sg.cardW-22)+'" y2="'+(ty-8)+'" stroke="'+C.line+'"/>';
         ty += 10;
-        s += '<text x="'+(x+22)+'" y="'+ty+'" font-family="Arial" font-size="8.5" letter-spacing="1.5" fill="'+C.accent+'">&#8630; REDO LISTENS FOR</text>';
+        // small vector arrow: right = Redo pushes into this system, left = event back to Redo
+        s += blk.out
+          ? '<polygon points="'+(x+22)+','+(ty-7)+' '+(x+30)+','+(ty-3.5)+' '+(x+22)+','+ty+'" fill="'+mk+'"/>'
+          : '<polygon points="'+(x+30)+','+(ty-7)+' '+(x+22)+','+(ty-3.5)+' '+(x+30)+','+ty+'" fill="'+mk+'"/>';
+        s += '<text x="'+(x+36)+'" y="'+ty+'" font-family="Arial" font-size="8.5" letter-spacing="1.5" fill="'+mk+'">'+blk.label+'</text>';
         ty += 15;
-        step.lLines.forEach(function(l){
-          s += '<text x="'+(x+22)+'" y="'+ty+'" font-family="Arial" font-size="10.5" fill="'+(step.p2?C.muted:C.text)+'">'+esc(l)+'</text>';
+        blk.lines.forEach(function(l){
+          s += '<text x="'+(x+22)+'" y="'+ty+'" font-family="Arial" font-size="10.5" fill="'+(nd.p2?C.muted:C.text)+'">'+esc(l)+'</text>';
           ty += 14;
         });
-      }
-
-      /* connector from previous step */
-      if(prev){
-        var c = prev.p2 && step.p2 ? C.faint : C.muted;
-        var d = prev.p2 && step.p2 ? ' stroke-dasharray="5 4"' : '';
-        if(prev.y === step.y){
-          var x1 = rtl ? prev.x : prev.x+prev.w, x2 = rtl ? step.x+step.w : step.x;
-          var yy = y + row.h/2;
-          s += '<line x1="'+x1+'" y1="'+yy+'" x2="'+x2+'" y2="'+yy+'" stroke="'+c+'" stroke-width="1.5"'+d+'/>';
-          s += head(x2, yy, rtl?Math.PI:0, c);
-        } else {
-          var sx = prev.x + prev.w/2, sy = prev.y + rows[ri-1].h;
-          var ex = step.x + step.w/2, ey = step.y;
-          s += '<path d="M'+sx+','+sy+' C'+sx+','+(sy+38)+' '+ex+','+(ey-38)+' '+ex+','+ey+'" fill="none" stroke="'+c+'" stroke-width="1.5"'+d+'/>';
-          s += head(ex, ey, Math.PI/2, c);
-        }
-      }
-      prev = step;
+      });
     });
-    y += row.h + ROW_GAP;
+
+    y += sg.h + STAGE_GAP;
   });
 
-  if(!n) s += '<text x="'+(W/2)+'" y="'+(headerH+70)+'" text-anchor="middle" font-family="Arial" font-size="14" fill="'+C.faint+'">No steps in scope — turn one back on in the panel.</text>';
+  /* connectors between stages */
+  for(var i=0;i<stages.length-1;i++){
+    var A=stages[i].nodes, B=stages[i+1].nodes;
+    var pairs=[];
+    if(A.length===1 || B.length===1 || A.length!==B.length){
+      A.forEach(function(a,ai){ B.forEach(function(b,bi){
+        if(A.length===1||B.length===1) pairs.push([a,b]);
+        else if(ai===Math.min(bi,A.length-1)) pairs.push([a,b]);
+      }); });
+    } else {
+      A.forEach(function(a,ai){ pairs.push([a,B[ai]]); });
+    }
+    pairs.forEach(function(pr){
+      var a=pr[0], b=pr[1];
+      var c = (a.p2&&b.p2) ? C.faint : C.muted;
+      var d = (a.p2&&b.p2) ? ' stroke-dasharray="5 4"' : '';
+      var sx=a.cx, sy=a.bottom, ex=b.cx, ey=b.top;
+      s += '<path d="M'+sx+','+sy+' C'+sx+','+(sy+STAGE_GAP*0.55)+' '+ex+','+(ey-STAGE_GAP*0.55)+' '+ex+','+ey+'" fill="none" stroke="'+c+'" stroke-width="1.5"'+d+'/>';
+      s += head(ex,ey,Math.PI/2,c);
+    });
+  }
+
+  if(!stages.length)
+    s += '<text x="'+(W/2)+'" y="'+(headerH+70)+'" text-anchor="middle" font-family="Arial" font-size="14" fill="'+C.faint+'">Nothing in scope — turn a system back on in the panel.</text>';
 
   /* footer */
-  var anyP2 = st.steps.some(function(x){ return x.status==="p2"; });
-  var fy = H - 30;
+  var anyP2 = st.stages.some(function(sg){ return sg.nodes.some(function(n){ return n.status==="p2"; }); });
+  var fy=H-30;
   s += '<line x1="'+MARGIN+'" y1="'+(fy-24)+'" x2="'+(W-MARGIN)+'" y2="'+(fy-24)+'" stroke="'+C.line+'"/>';
   s += '<text x="'+MARGIN+'" y="'+fy+'" font-family="Arial" font-size="9" letter-spacing="1.4" fill="'+C.muted+'">'+esc((st.footer||"").toUpperCase())+'</text>';
   s += '<text x="'+(W-MARGIN)+'" y="'+fy+'" text-anchor="end" font-family="Arial" font-size="9" letter-spacing="1.2" fill="'+C.faint+'">ORANGE = REDO'+
-       (anyP2?"  ·  DASHED = PHASE 2":"")+'  ·  &#8630; = REDO LISTENS FOR AN EVENT BACK</text>';
+       (anyP2?"  ·  DASHED = PHASE 2":"")+'  ·  REDO PUSHES INTO A SYSTEM / LISTENS FOR EVENTS BACK</text>';
 
   return '<svg xmlns="http://www.w3.org/2000/svg" id="diagram" viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" font-family="Arial">'+s+'</svg>';
 }
 
 function render(){
   state = readState();
-  var stage = document.getElementById("stage");
-  stage.style.background = THEMES[state.theme].bg;
-  stage.style.borderColor = THEMES[state.theme].line;
+  var stage=document.getElementById("stage");
+  stage.style.background=THEMES[state.theme].bg;
+  stage.style.borderColor=THEMES[state.theme].line;
   stage.innerHTML = renderSVG(state);
-  try{ localStorage.setItem("redoStackMapperJourney", JSON.stringify(state)); }catch(e){}
+  try{ localStorage.setItem("redoStackMapperFlow", JSON.stringify(state)); }catch(e){}
 }
 
 /* ---------------------------------------------------------------- exports */
 function fileName(ext){
-  return (state.merchant||"diagram").replace(/[^a-z0-9]+/gi,"-").replace(/^-|-$/g,"").toLowerCase()+"-redo-journey."+ext;
+  return (state.merchant||"diagram").replace(/[^a-z0-9]+/gi,"-").replace(/^-|-$/g,"").toLowerCase()+"-redo-flow."+ext;
 }
 function download(blob,name){
   var a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name;
@@ -389,52 +474,54 @@ function rasterPDF(doc,w,h){
 /* ------------------------------------------------------------ persistence */
 function applyState(st){
   ["merchant","platform","subtitle","prepared","footer"].forEach(function(k){
-    var el=document.getElementById(k); if(el) el.value = st[k]||"";
+    var el=document.getElementById(k); if(el) el.value=st[k]||"";
   });
-  lastPlatform = st.platform || "";
-  theme = st.theme==="light" ? "light" : "dark";
+  lastPlatform = st.platform||"";
+  theme = st.theme==="light"?"light":"dark";
   var segs=document.querySelectorAll("#themeSeg button");
   for(var i=0;i<segs.length;i++) segs[i].className = segs[i].dataset.theme===theme?"on":"";
-  buildSteps(st.steps&&st.steps.length?st.steps:DEFAULT_STEPS);
+  buildStages(st.stages&&st.stages.length?st.stages:DEFAULT_STAGES);
   render();
 }
 function reset(){
-  applyState({ merchant:"Acme Outdoors", platform:"Shopify",
-    subtitle:"Returns journey & integration map", prepared:"Seth Weeks · Redo",
+  applyState({ merchant:"Acme Outdoors", platform:"Salesforce Commerce Cloud",
+    subtitle:"Systems, actions & integration flow", prepared:"Seth Weeks · Redo",
     footer:"REDO | Private & Confidential", theme:"dark",
-    steps: JSON.parse(JSON.stringify(DEFAULT_STEPS)) });
+    stages: JSON.parse(JSON.stringify(DEFAULT_STAGES)) });
 }
 function renumber(){
-  var nums=document.querySelectorAll("#steps .num");
+  var nums=document.querySelectorAll("#stages .stg .num");
   for(var i=0;i<nums.length;i++) nums[i].textContent=(i+1<10?"0":"")+(i+1);
 }
 
 /* ----------------------------------------------------------------- wiring */
 document.addEventListener("input", function(e){
   if(!e.target.closest("aside")) return;
-  if(e.target.id === "platform"){
-    var now = e.target.value;
+  if(e.target.id==="platform"){
+    var now=e.target.value;
     if(lastPlatform){
-      var fields=document.querySelectorAll("#steps .sys");
-      for(var i=0;i<fields.length;i++){
-        if(fields[i].value.trim().toLowerCase() === lastPlatform.trim().toLowerCase())
-          fields[i].value = now;
-      }
+      var f=document.querySelectorAll("#stages .sys");
+      for(var i=0;i<f.length;i++)
+        if(f[i].value.trim().toLowerCase()===lastPlatform.trim().toLowerCase()) f[i].value=now;
     }
-    lastPlatform = now;
+    lastPlatform=now;
   }
   render();
 });
 document.addEventListener("change", function(e){ if(e.target.closest("aside")) render(); });
 
-document.getElementById("steps").addEventListener("click", function(e){
+document.getElementById("stages").addEventListener("click", function(e){
   var b=e.target.closest("button"); if(!b) return;
-  var card=b.closest(".step");
-  if(b.classList.contains("del")) card.remove();
-  if(b.classList.contains("up") && card.previousElementSibling)
-    card.parentNode.insertBefore(card, card.previousElementSibling);
-  if(b.classList.contains("down") && card.nextElementSibling)
-    card.parentNode.insertBefore(card.nextElementSibling, card);
+  var stg=b.closest(".stg");
+  if(b.classList.contains("delnode")) b.closest(".node").remove();
+  else if(b.classList.contains("addnode"))
+    stg.querySelector(".nodes").insertAdjacentHTML("beforeend",
+      nodeHTML({sys:"",actions:"",listens:"",status:"on"}));
+  else if(b.classList.contains("delstage")) stg.remove();
+  else if(b.classList.contains("up") && stg.previousElementSibling)
+    stg.parentNode.insertBefore(stg, stg.previousElementSibling);
+  else if(b.classList.contains("down") && stg.nextElementSibling)
+    stg.parentNode.insertBefore(stg.nextElementSibling, stg);
   renumber(); render();
 });
 document.getElementById("themeSeg").addEventListener("click", function(e){
@@ -444,14 +531,14 @@ document.getElementById("themeSeg").addEventListener("click", function(e){
   for(var i=0;i<segs.length;i++) segs[i].className = segs[i]===b?"on":"";
   render();
 });
-document.getElementById("btnAdd").addEventListener("click", function(){
-  var count=document.querySelectorAll("#steps .step").length;
-  document.getElementById("steps").insertAdjacentHTML("beforeend",
-    stepHTML({label:"New step",sys:"",detail:"",listens:"",status:"on"}, count));
+document.getElementById("btnAddStage").addEventListener("click", function(){
+  var n=document.querySelectorAll("#stages .stg").length;
+  document.getElementById("stages").insertAdjacentHTML("beforeend",
+    stageHTML({name:"New stage", nodes:[{sys:"",actions:"",listens:"",status:"on"}]}, n));
   render();
 });
 document.getElementById("btnReset").addEventListener("click", function(){
-  if(confirm("Reset to the default journey?")) reset();
+  if(confirm("Reset to the default flow?")) reset();
 });
 document.getElementById("btnSave").addEventListener("click", function(){
   download(new Blob([JSON.stringify(readState(),null,2)],{type:"application/json"}),fileName("json"));
@@ -467,8 +554,8 @@ document.getElementById("btnPng").addEventListener("click", exportPNG);
 document.getElementById("btnPdf").addEventListener("click", exportPDF);
 
 var saved=null;
-try{ saved=JSON.parse(localStorage.getItem("redoStackMapperJourney")); }catch(e){}
-if(saved&&saved.steps) applyState(saved); else reset();
+try{ saved=JSON.parse(localStorage.getItem("redoStackMapperFlow")); }catch(e){}
+if(saved&&saved.stages) applyState(saved); else reset();
 
 })();
 </script>
