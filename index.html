@@ -1,0 +1,676 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Redo Stack Mapper</title>
+<!-- vendored locally so the app works offline and needs no CDN allowlisting -->
+<script src="vendor/jspdf.umd.min.js"></script>
+<script src="vendor/svg2pdf.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0D0D0D; --card:#1A1A18; --card2:#262624; --line:#333330;
+    --text:#FFFFFF; --muted:#9B9A96; --faint:#4D4D4A; --accent:#FF4405; --tint:#FFE8DF;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:Arial, "Helvetica Neue", Helvetica, sans-serif; font-size:13px;
+  }
+  .kicker{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .kicker.a{color:var(--accent)}
+  h1,h2,h3{font-family:Georgia,"Times New Roman",serif;font-weight:400;margin:0}
+
+  header.top{
+    display:flex;align-items:center;justify-content:space-between;gap:16px;
+    padding:14px 20px;border-bottom:1px solid var(--line);background:var(--bg);
+  }
+  header.top .brand{display:flex;align-items:baseline;gap:12px}
+  header.top .wordmark{font-family:Georgia,serif;font-size:19px;letter-spacing:.02em}
+  header.top .wordmark b{color:var(--accent);font-weight:400}
+  .actions{display:flex;gap:8px;flex-wrap:wrap}
+
+  button{
+    font-family:inherit;font-size:12px;color:var(--text);background:var(--card2);
+    border:1px solid var(--line);border-radius:4px;padding:7px 12px;cursor:pointer;
+  }
+  button:hover{border-color:var(--muted)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:bold}
+  button.primary:hover{filter:brightness(1.08)}
+  button.ghost{background:transparent}
+
+  .app{display:grid;grid-template-columns:400px 1fr;height:calc(100vh - 59px)}
+  @media (max-width:900px){.app{grid-template-columns:1fr;height:auto}}
+
+  aside{overflow-y:auto;border-right:1px solid var(--line);padding:18px 18px 60px}
+  main{overflow:auto;padding:22px;background:#0A0A0A}
+  @media (max-width:900px){aside{border-right:none;border-bottom:1px solid var(--line)}}
+
+  .group{margin-bottom:22px}
+  .group > .kicker{display:block;margin-bottom:10px;border-bottom:1px solid var(--line);padding-bottom:6px}
+
+  label.f{display:block;margin-bottom:9px}
+  label.f span{display:block;font-size:10px;color:var(--muted);margin-bottom:4px;letter-spacing:.04em}
+  input[type=text], select, textarea{
+    width:100%;font-family:inherit;font-size:12px;color:var(--text);
+    background:var(--card);border:1px solid var(--line);border-radius:4px;padding:7px 8px;
+  }
+  input[type=text]:focus, select:focus{outline:none;border-color:var(--accent)}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+  .mods{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .chk{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text);
+       background:var(--card);border:1px solid var(--line);border-radius:4px;padding:7px 8px;cursor:pointer}
+  .chk input{accent-color:var(--accent);margin:0}
+  .chk.off{color:var(--faint)}
+
+  .row{border:1px solid var(--line);border-radius:5px;margin-bottom:8px;background:var(--card);overflow:hidden}
+  .row.off{opacity:.45}
+  .row.p2{border-color:#5a4a3f}
+  .rowhead{display:flex;align-items:center;gap:8px;padding:8px 9px}
+  .rowhead .nm{flex:1;font-size:12px;font-weight:bold}
+  .rowhead .nm input{background:transparent;border:none;padding:0;font-weight:bold;font-size:12px}
+  .rowhead select.status{width:auto;flex:0 0 108px;font-size:11px;padding:4px 6px}
+  .rowbody{padding:0 9px 9px;display:grid;grid-template-columns:1fr 1fr;gap:7px}
+  .rowbody .full{grid-column:1 / -1}
+  .row.off .rowbody{display:none}
+  .del{flex:0 0 auto;background:transparent;border:none;color:var(--faint);cursor:pointer;font-size:14px;line-height:1;padding:2px 4px}
+  .del:hover{color:var(--accent)}
+
+  .stage{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px;display:inline-block;min-width:100%}
+  .stage svg{display:block;width:100%;height:auto}
+
+  .hint{font-size:11px;color:var(--faint);line-height:1.5;margin-top:6px}
+  .seg{display:flex;gap:0;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+  .seg button{border:none;border-radius:0;flex:1;background:var(--card)}
+  .seg button.on{background:var(--card2);color:var(--text);box-shadow:inset 0 -2px 0 var(--accent)}
+  #file{display:none}
+  .foot{padding:10px 20px;border-top:1px solid var(--line);font-size:10px;color:var(--faint);letter-spacing:.06em}
+
+  @media print{
+    header.top, aside, .foot{display:none !important}
+    .app{display:block;height:auto}
+    main{padding:0;background:#fff}
+    .stage{border:none;padding:0}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <span class="wordmark">RED<b>O</b></span>
+    <span class="kicker">Stack Mapper &nbsp;·&nbsp; Integration Architecture Builder</span>
+  </div>
+  <div class="actions">
+    <button class="ghost" id="btnReset">Reset</button>
+    <button class="ghost" id="btnLoad">Load JSON</button>
+    <button class="ghost" id="btnSave">Save JSON</button>
+    <button class="ghost" id="btnPng">PNG</button>
+    <button class="primary" id="btnPdf">Download PDF</button>
+  </div>
+</header>
+
+<div class="app">
+  <aside>
+    <div class="group">
+      <span class="kicker a">Project</span>
+      <label class="f"><span>Brand / merchant</span><input type="text" id="merchant" value="Acme Outdoors"></label>
+      <div class="two">
+        <label class="f"><span>Subtitle</span><input type="text" id="subtitle" value="Redo integration architecture"></label>
+        <label class="f"><span>Prepared by</span><input type="text" id="prepared" value="Seth Weeks · Solutions Engineering"></label>
+      </div>
+      <label class="f"><span>Footer</span><input type="text" id="footer" value="REDO | Private &amp; Confidential"></label>
+      <label class="f"><span>Theme</span></label>
+      <div class="seg" id="themeSeg">
+        <button data-theme="dark" class="on">Dark</button>
+        <button data-theme="light">Light (print)</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <span class="kicker a">Redo scope</span>
+      <div class="mods" id="mods"></div>
+      <div class="hint">Unchecked modules disappear from the Redo core block.</div>
+    </div>
+
+    <div class="group">
+      <span class="kicker a">Integration points</span>
+      <div id="rows"></div>
+      <button class="ghost" id="btnAdd" style="width:100%;margin-top:4px">+ Add integration point</button>
+      <div class="hint">In scope = solid. Phase 2 = dashed + muted. Not in scope = removed entirely.</div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="stage" id="stage"></div>
+  </main>
+</div>
+
+<div class="foot">REDO | Private &amp; Confidential</div>
+<input type="file" id="file" accept="application/json">
+
+<datalist id="systems">
+  <option>Shopify</option><option>Shopify Plus</option><option>Shopify Checkout</option>
+  <option>BigCommerce</option><option>Salesforce Commerce Cloud</option><option>Magento</option>
+  <option>NetSuite</option><option>Microsoft Dynamics</option><option>SAP</option>
+  <option>ShipHero</option><option>Manhattan</option><option>Blue Yonder</option><option>3PL (WMS)</option>
+  <option>Gorgias</option><option>Zendesk</option><option>Kustomer</option><option>Salesforce Service Cloud</option>
+  <option>Klaviyo</option><option>Attentive</option><option>Iterable</option>
+  <option>Redo</option><option>Redo Returns Portal</option><option>EasyPost</option>
+  <option>Amazon</option><option>Custom ERP</option><option>Custom middleware</option>
+</datalist>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------------------------------------------------------------- palettes */
+var THEMES = {
+  dark:{ bg:"#0D0D0D", card:"#1A1A18", card2:"#262624", line:"#3A3A37",
+         text:"#FFFFFF", muted:"#9B9A96", faint:"#4D4D4A",
+         accent:"#FF4405", tint:"#FFE8DF", labelBg:"#0D0D0D" },
+  light:{ bg:"#FFFFFF", card:"#F7F5F2", card2:"#EFECE7", line:"#D9D4CD",
+          text:"#1A1A18", muted:"#6E6B66", faint:"#9B9A96",
+          accent:"#FF4405", tint:"#8A4A2E", labelBg:"#FFFFFF" }
+};
+var theme = "dark";
+
+/* ------------------------------------------------------------ default data */
+var MODULES = [
+  ["portal","Returns portal",true],
+  ["exchanges","Exchanges",true],
+  ["credit","Store credit",true],
+  ["bonus","Bonus Credit",false],
+  ["coverage","Return coverage",true],
+  ["warranty","Warranty claims",false],
+  ["checkout","Checkout+",false],
+  ["protection","Package protection",false],
+  ["green","Green / keep-it returns",false],
+  ["instore","In-store returns",false]
+];
+
+// zone: src (left) | dest (right) | shopper (top) | ops (bottom)
+// dir:  in (system -> Redo) | out (Redo -> system) | both
+var DEFAULT_FLOWS = [
+  {id:"orders",   label:"Orders",                zone:"src",     dir:"in",   sys:"Shopify",            method:"Admin API / webhooks", status:"on"},
+  {id:"products", label:"Products & variants",   zone:"src",     dir:"in",   sys:"Shopify",            method:"Admin API",            status:"on"},
+  {id:"customers",label:"Customers",             zone:"src",     dir:"in",   sys:"Shopify",            method:"Admin API",            status:"off"},
+  {id:"inventory",label:"Inventory",             zone:"src",     dir:"in",   sys:"ShipHero",           method:"API sync",             status:"off"},
+  {id:"coverage", label:"Coverage display",      zone:"shopper", dir:"out",  sys:"Shopify storefront", method:"Theme app extension — PDP + cart", status:"on"},
+  {id:"portal",   label:"Returns portal",        zone:"shopper", dir:"out",  sys:"returns.brand.com",  method:"Hosted by Redo",       status:"on"},
+  {id:"chkout",   label:"Checkout+ upsell",      zone:"shopper", dir:"out",  sys:"Shopify Checkout",   method:"Checkout extension",   status:"off"},
+  {id:"rma",      label:"RMA creation",          zone:"dest",    dir:"out",  sys:"Redo",               method:"Native — synced to ERP", status:"on"},
+  {id:"labels",   label:"Return labels",         zone:"dest",    dir:"out",  sys:"Redo (EasyPost)",    method:"Carrier rates + label buy", status:"on"},
+  {id:"refunds",  label:"Refunds",               zone:"dest",    dir:"out",  sys:"Shopify",            method:"Refund API — original payment", status:"on"},
+  {id:"exch",     label:"Exchange orders",       zone:"dest",    dir:"out",  sys:"Shopify",            method:"Draft order → order",  status:"on"},
+  {id:"scredit",  label:"Store credit",          zone:"dest",    dir:"out",  sys:"Shopify",            method:"Gift card API",        status:"on"},
+  {id:"recv",     label:"Receiving & inspection",zone:"ops",     dir:"both", sys:"ShipHero",           method:"Scan-in → status webhook", status:"on"},
+  {id:"cx",       label:"CX / support",          zone:"ops",     dir:"both", sys:"Gorgias",            method:"App integration — ticket sidebar", status:"on"},
+  {id:"notif",    label:"Shopper notifications", zone:"ops",     dir:"out",  sys:"Klaviyo",            method:"Event webhooks",       status:"on"},
+  {id:"erp",      label:"ERP / finance sync",    zone:"ops",     dir:"both", sys:"NetSuite",           method:"Middleware",           status:"off"}
+];
+
+var state = null;
+var meas = document.createElement("canvas").getContext("2d");
+
+/* --------------------------------------------------------------- utilities */
+function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function tw(text, font){ meas.font = font; return meas.measureText(text).width; }
+function wrap(text, font, maxW){
+  var words = String(text).split(" "), lines = [], cur = "";
+  for(var i=0;i<words.length;i++){
+    var t = cur ? cur+" "+words[i] : words[i];
+    if(tw(t,font) > maxW && cur){ lines.push(cur); cur = words[i]; } else { cur = t; }
+  }
+  if(cur) lines.push(cur);
+  return lines;
+}
+function today(){
+  var d = new Date();
+  return d.toLocaleDateString("en-US",{month:"short", day:"numeric", year:"numeric"});
+}
+
+/* ------------------------------------------------------------- build panel */
+function buildModules(){
+  var host = document.getElementById("mods");
+  host.innerHTML = MODULES.map(function(m){
+    return '<label class="chk'+(m[2]?"":" off")+'"><input type="checkbox" data-mod="'+m[0]+'"'+(m[2]?" checked":"")+'><span>'+esc(m[1])+'</span></label>';
+  }).join("");
+}
+
+function rowHTML(f, custom){
+  var opt = function(v,l,cur){ return '<option value="'+v+'"'+(cur===v?" selected":"")+'>'+l+'</option>'; };
+  return '<div class="row'+(f.status==="off"?" off":"")+(f.status==="p2"?" p2":"")+'" data-id="'+esc(f.id)+'">'+
+    '<div class="rowhead">'+
+      '<span class="nm">'+(custom
+        ? '<input type="text" class="lbl" value="'+esc(f.label)+'">'
+        : esc(f.label))+'</span>'+
+      '<select class="status">'+opt("on","In scope",f.status)+opt("p2","Phase 2",f.status)+opt("off","Not in scope",f.status)+'</select>'+
+      (custom?'<button class="del" title="Remove">&times;</button>':'')+
+    '</div>'+
+    '<div class="rowbody">'+
+      '<input type="text" class="sys" list="systems" placeholder="System" value="'+esc(f.sys)+'">'+
+      '<select class="zone">'+opt("src","Source (left)",f.zone)+opt("dest","Destination (right)",f.zone)+opt("shopper","Shopper surface (top)",f.zone)+opt("ops","Ops / back office (bottom)",f.zone)+'</select>'+
+      '<input type="text" class="method full" placeholder="Method / detail" value="'+esc(f.method)+'">'+
+      '<select class="dir full">'+opt("in","→ into Redo",f.dir)+opt("out","→ out of Redo",f.dir)+opt("both","↔ two-way",f.dir)+'</select>'+
+    '</div></div>';
+}
+
+function buildRows(flows){
+  document.getElementById("rows").innerHTML = flows.map(function(f){
+    return rowHTML(f, !!f.custom);
+  }).join("");
+}
+
+function readState(){
+  var flows = [];
+  var nodes = document.querySelectorAll("#rows .row");
+  for(var i=0;i<nodes.length;i++){
+    var r = nodes[i];
+    var lblInput = r.querySelector(".lbl");
+    var base = DEFAULT_FLOWS.filter(function(d){ return d.id === r.dataset.id; })[0];
+    flows.push({
+      id: r.dataset.id,
+      custom: !!lblInput,
+      label: lblInput ? lblInput.value : (base ? base.label : r.dataset.id),
+      status: r.querySelector(".status").value,
+      sys: r.querySelector(".sys").value,
+      zone: r.querySelector(".zone").value,
+      method: r.querySelector(".method").value,
+      dir: r.querySelector(".dir").value
+    });
+    r.className = "row" + (flows[i].status==="off"?" off":"") + (flows[i].status==="p2"?" p2":"");
+  }
+  var mods = [];
+  var boxes = document.querySelectorAll("#mods input[type=checkbox]");
+  for(var j=0;j<boxes.length;j++){
+    var lbl = boxes[j].parentNode;
+    lbl.className = "chk" + (boxes[j].checked?"":" off");
+    if(boxes[j].checked){
+      var key = boxes[j].getAttribute("data-mod");
+      var m = MODULES.filter(function(x){ return x[0]===key; })[0];
+      mods.push(m?m[1]:key);
+    }
+  }
+  return {
+    merchant: document.getElementById("merchant").value,
+    subtitle: document.getElementById("subtitle").value,
+    prepared: document.getElementById("prepared").value,
+    footer: document.getElementById("footer").value,
+    theme: theme,
+    modules: mods,
+    flows: flows
+  };
+}
+
+/* ------------------------------------------------------------ svg geometry */
+var W = 1680;
+var NODE_W_SIDE = 300, NODE_W_VERT = 250, NODE_H = 66, NODE_GAP = 22;
+var CORE_W = 400;
+var F_TITLE = "bold 15px Arial", F_SUB = "9px Arial", F_LBL = "11px Arial", F_METH = "italic 9.5px Arial";
+
+function groupNodes(flows, zone){
+  var out = [], map = {};
+  flows.forEach(function(f){
+    if(f.status === "off") return;
+    if(f.zone !== zone) return;
+    var key = (f.sys||"Unspecified").trim().toLowerCase();
+    if(!map[key]){
+      map[key] = { sys:(f.sys||"Unspecified").trim(), flows:[] };
+      out.push(map[key]);
+    }
+    map[key].flows.push(f);
+  });
+  out.forEach(function(n){
+    var dirs = {}; n.flows.forEach(function(f){ dirs[f.dir]=1; });
+    n.dir = Object.keys(dirs).length === 1 ? n.flows[0].dir : "both";
+    n.phase2 = n.flows.every(function(f){ return f.status === "p2"; });
+    n.hasP2  = n.flows.some(function(f){ return f.status === "p2"; });
+    var labels  = n.flows.map(function(f){ return f.label; });
+    var methods = [];
+    n.flows.forEach(function(f){ if(f.method && methods.indexOf(f.method)<0) methods.push(f.method); });
+    n.labelLines  = wrap(labels.join("  ·  "), F_LBL, 210);
+    n.methodLines = methods.length ? wrap(methods.join("  ·  "), F_METH, 220).slice(0,2) : [];
+  });
+  return out;
+}
+
+function bezPt(p,t){
+  var mt = 1-t;
+  return {
+    x: mt*mt*mt*p[0].x + 3*mt*mt*t*p[1].x + 3*mt*t*t*p[2].x + t*t*t*p[3].x,
+    y: mt*mt*mt*p[0].y + 3*mt*mt*t*p[1].y + 3*mt*t*t*p[2].y + t*t*t*p[3].y
+  };
+}
+function bezTan(p,t){
+  var mt = 1-t;
+  return {
+    x: 3*mt*mt*(p[1].x-p[0].x) + 6*mt*t*(p[2].x-p[1].x) + 3*t*t*(p[3].x-p[2].x),
+    y: 3*mt*mt*(p[1].y-p[0].y) + 6*mt*t*(p[2].y-p[1].y) + 3*t*t*(p[3].y-p[2].y)
+  };
+}
+function head(x,y,ang,color){
+  var L = 10, Wd = 4.6;
+  var p1 = (x)+","+(y);
+  var p2 = (x - L*Math.cos(ang) + Wd*Math.sin(ang))+","+(y - L*Math.sin(ang) - Wd*Math.cos(ang));
+  var p3 = (x - L*Math.cos(ang) - Wd*Math.sin(ang))+","+(y - L*Math.sin(ang) + Wd*Math.cos(ang));
+  return '<polygon points="'+p1+" "+p2+" "+p3+'" fill="'+color+'"/>';
+}
+
+function nodeSVG(n, x, y, w, C, roleLabel){
+  var stroke = n.phase2 ? C.faint : C.line;
+  var dash = n.phase2 ? ' stroke-dasharray="5 4"' : '';
+  var s = '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+NODE_H+'" rx="6" fill="'+C.card+'" stroke="'+stroke+'" stroke-width="1"'+dash+'/>';
+  s += '<rect x="'+x+'" y="'+(y+14)+'" width="3" height="'+(NODE_H-28)+'" fill="'+(n.phase2?C.faint:C.accent)+'"/>';
+  s += '<text x="'+(x+18)+'" y="'+(y+30)+'" font-family="Arial" font-size="15" font-weight="bold" fill="'+(n.phase2?C.muted:C.text)+'">'+esc(n.sys)+'</text>';
+  s += '<text x="'+(x+18)+'" y="'+(y+48)+'" font-family="Arial" font-size="9" letter-spacing="1.4" fill="'+C.muted+'">'+esc(roleLabel.toUpperCase())+(n.phase2?"  ·  PHASE 2":"")+'</text>';
+  return s;
+}
+
+function connSVG(p, n, C){
+  var color = n.phase2 ? C.faint : C.muted;
+  var dash  = n.phase2 ? ' stroke-dasharray="5 4"' : '';
+  var d = "M"+p[0].x+","+p[0].y+" C"+p[1].x+","+p[1].y+" "+p[2].x+","+p[2].y+" "+p[3].x+","+p[3].y;
+  var s = '<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="1.4"'+dash+'/>';
+  if(n.dir === "in" || n.dir === "both"){
+    var t1 = bezTan(p,1); s += head(p[3].x, p[3].y, Math.atan2(t1.y,t1.x), color);
+  }
+  if(n.dir === "out" || n.dir === "both"){
+    var t0 = bezTan(p,0); s += head(p[0].x, p[0].y, Math.atan2(-t0.y,-t0.x), color);
+  }
+  // label block at curve midpoint
+  var mid = bezPt(p,0.5);
+  var lines = n.labelLines, mlines = n.methodLines;
+  var lh = 13, mh = 11;
+  var bw = 0;
+  lines.forEach(function(l){ bw = Math.max(bw, tw(l,F_LBL)); });
+  mlines.forEach(function(l){ bw = Math.max(bw, tw(l,F_METH)); });
+  bw += 16;
+  var bh = lines.length*lh + mlines.length*mh + 10;
+  var bx = mid.x - bw/2, by = mid.y - bh/2;
+  s += '<rect x="'+bx.toFixed(1)+'" y="'+by.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+bh.toFixed(1)+'" rx="3" fill="'+C.labelBg+'" stroke="'+C.line+'" stroke-width="0.8"/>';
+  var ty = by + 13;
+  lines.forEach(function(l){
+    s += '<text x="'+mid.x.toFixed(1)+'" y="'+ty.toFixed(1)+'" text-anchor="middle" font-family="Arial" font-size="11" fill="'+(n.phase2?C.muted:C.text)+'">'+esc(l)+'</text>';
+    ty += lh;
+  });
+  mlines.forEach(function(l){
+    s += '<text x="'+mid.x.toFixed(1)+'" y="'+ty.toFixed(1)+'" text-anchor="middle" font-family="Arial" font-size="9.5" font-style="italic" fill="'+C.muted+'">'+esc(l)+'</text>';
+    ty += mh;
+  });
+  return s;
+}
+
+function renderSVG(st){
+  var C = THEMES[st.theme];
+  var src = groupNodes(st.flows,"src"),
+      dst = groupNodes(st.flows,"dest"),
+      shp = groupNodes(st.flows,"shopper"),
+      ops = groupNodes(st.flows,"ops");
+
+  var headerH = 118, footerH = 62, zoneGap = 78;
+  var coreH = 104 + Math.max(st.modules.length,1)*27 + 16;
+
+  var colH = function(arr){ return arr.length ? arr.length*NODE_H + (arr.length-1)*NODE_GAP : 0; };
+  var midH = Math.max(colH(src), colH(dst), coreH, 200);
+
+  var topH    = shp.length ? NODE_H : 0;
+  var botH    = ops.length ? NODE_H : 0;
+  var midTop  = headerH + (topH ? topH + zoneGap : 20);
+  var botTop  = midTop + midH + (botH ? zoneGap : 0);
+  var H       = botTop + botH + footerH + 24;
+
+  var coreX = (W - CORE_W)/2, coreY = midTop + (midH - coreH)/2;
+  var s = "";
+
+  s += '<rect x="0" y="0" width="'+W+'" height="'+H+'" fill="'+C.bg+'"/>';
+
+  /* header */
+  s += '<text x="64" y="52" font-family="Arial" font-size="10" letter-spacing="2.6" fill="'+C.accent+'">REDO INTEGRATION ARCHITECTURE</text>';
+  s += '<text x="64" y="90" font-family="Georgia, serif" font-size="32" fill="'+C.text+'">'+esc(st.merchant||"Untitled brand")+'</text>';
+  if(st.subtitle)
+    s += '<text x="'+(64 + tw(st.merchant||"Untitled brand","32px Georgia") + 16)+'" y="90" font-family="Georgia, serif" font-size="16" font-style="italic" fill="'+C.muted+'">'+esc(st.subtitle)+'</text>';
+  s += '<text x="'+(W-64)+'" y="52" text-anchor="end" font-family="Arial" font-size="10" letter-spacing="1.4" fill="'+C.muted+'">'+esc(today().toUpperCase())+'</text>';
+  if(st.prepared)
+    s += '<text x="'+(W-64)+'" y="70" text-anchor="end" font-family="Arial" font-size="10" fill="'+C.faint+'">'+esc(st.prepared)+'</text>';
+  s += '<line x1="64" y1="'+(headerH-8)+'" x2="'+(W-64)+'" y2="'+(headerH-8)+'" stroke="'+C.line+'" stroke-width="1"/>';
+
+  /* core */
+  s += '<rect x="'+coreX+'" y="'+coreY+'" width="'+CORE_W+'" height="'+coreH+'" rx="10" fill="'+C.card+'" stroke="'+C.accent+'" stroke-width="2"/>';
+  s += '<text x="'+(coreX+CORE_W/2)+'" y="'+(coreY+46)+'" text-anchor="middle" font-family="Georgia, serif" font-size="30" fill="'+C.text+'">RED<tspan fill="'+C.accent+'">O</tspan></text>';
+  s += '<text x="'+(coreX+CORE_W/2)+'" y="'+(coreY+68)+'" text-anchor="middle" font-family="Arial" font-size="9" letter-spacing="1.8" fill="'+C.muted+'">RETURNS &amp; EXCHANGE PLATFORM</text>';
+  s += '<line x1="'+(coreX+28)+'" y1="'+(coreY+84)+'" x2="'+(coreX+CORE_W-28)+'" y2="'+(coreY+84)+'" stroke="'+C.line+'"/>';
+  var my = coreY + 104;
+  (st.modules.length?st.modules:["— no modules selected —"]).forEach(function(m){
+    s += '<rect x="'+(coreX+28)+'" y="'+(my-15)+'" width="'+(CORE_W-56)+'" height="22" rx="3" fill="'+C.card2+'"/>';
+    s += '<rect x="'+(coreX+28)+'" y="'+(my-15)+'" width="2.5" height="22" fill="'+C.accent+'"/>';
+    s += '<text x="'+(coreX+42)+'" y="'+my+'" font-family="Arial" font-size="12" fill="'+C.text+'">'+esc(m)+'</text>';
+    my += 27;
+  });
+
+  /* left column */
+  var edge = function(count,i,top,size){ return top + size*(i+1)/(count+1); };
+  var ly = midTop + (midH - colH(src))/2;
+  src.forEach(function(n,i){
+    var x = 64, y = ly + i*(NODE_H+NODE_GAP);
+    s += connSVG([
+      {x:x+NODE_W_SIDE, y:y+NODE_H/2},
+      {x:x+NODE_W_SIDE+110, y:y+NODE_H/2},
+      {x:coreX-110, y:edge(src.length,i,coreY,coreH)},
+      {x:coreX, y:edge(src.length,i,coreY,coreH)}
+    ], n, C);
+    s += nodeSVG(n, x, y, NODE_W_SIDE, C, "System of record");
+  });
+
+  /* right column */
+  var ry = midTop + (midH - colH(dst))/2;
+  dst.forEach(function(n,i){
+    var x = W - 64 - NODE_W_SIDE, y = ry + i*(NODE_H+NODE_GAP);
+    var p = [
+      {x:coreX+CORE_W, y:edge(dst.length,i,coreY,coreH)},
+      {x:coreX+CORE_W+110, y:edge(dst.length,i,coreY,coreH)},
+      {x:x-110, y:y+NODE_H/2},
+      {x:x, y:y+NODE_H/2}
+    ];
+    // direction semantics flip on the right: "out" means Redo -> system (head at node)
+    var flip = { dir: n.dir==="out" ? "in" : (n.dir==="in" ? "out" : "both"),
+                 phase2:n.phase2, labelLines:n.labelLines, methodLines:n.methodLines };
+    s += connSVG(p, flip, C);
+    s += nodeSVG(n, x, y, NODE_W_SIDE, C, "Destination");
+  });
+
+  /* top row (shopper surfaces) */
+  if(shp.length){
+    var totW = shp.length*NODE_W_VERT + (shp.length-1)*40;
+    var sx = (W - totW)/2, sy = headerH + 14;
+    shp.forEach(function(n,i){
+      var x = sx + i*(NODE_W_VERT+40);
+      var p = [
+        {x:coreX + CORE_W*(i+1)/(shp.length+1), y:coreY},
+        {x:coreX + CORE_W*(i+1)/(shp.length+1), y:coreY-70},
+        {x:x+NODE_W_VERT/2, y:sy+NODE_H+70},
+        {x:x+NODE_W_VERT/2, y:sy+NODE_H}
+      ];
+      var flip = { dir: n.dir==="out" ? "in" : (n.dir==="in" ? "out" : "both"),
+                   phase2:n.phase2, labelLines:n.labelLines, methodLines:n.methodLines };
+      s += connSVG(p, flip, C);
+      s += nodeSVG(n, x, sy, NODE_W_VERT, C, "Shopper surface");
+    });
+  }
+
+  /* bottom row (ops) */
+  if(ops.length){
+    var totW2 = ops.length*NODE_W_VERT + (ops.length-1)*40;
+    var ox = (W - totW2)/2;
+    ops.forEach(function(n,i){
+      var x = ox + i*(NODE_W_VERT+40);
+      var p = [
+        {x:coreX + CORE_W*(i+1)/(ops.length+1), y:coreY+coreH},
+        {x:coreX + CORE_W*(i+1)/(ops.length+1), y:coreY+coreH+70},
+        {x:x+NODE_W_VERT/2, y:botTop-70},
+        {x:x+NODE_W_VERT/2, y:botTop}
+      ];
+      var flip = { dir: n.dir==="out" ? "in" : (n.dir==="in" ? "out" : "both"),
+                   phase2:n.phase2, labelLines:n.labelLines, methodLines:n.methodLines };
+      s += connSVG(p, flip, C);
+      s += nodeSVG(n, x, botTop, NODE_W_VERT, C, "Ops / back office");
+    });
+  }
+
+  /* footer + legend */
+  var fy = H - 30;
+  s += '<line x1="64" y1="'+(fy-24)+'" x2="'+(W-64)+'" y2="'+(fy-24)+'" stroke="'+C.line+'"/>';
+  s += '<text x="64" y="'+fy+'" font-family="Arial" font-size="9" letter-spacing="1.4" fill="'+C.muted+'">'+esc((st.footer||"").toUpperCase())+'</text>';
+  var anyP2 = st.flows.some(function(f){ return f.status === "p2"; });
+  s += '<text x="'+(W-64)+'" y="'+fy+'" text-anchor="end" font-family="Arial" font-size="9" letter-spacing="1.2" fill="'+C.faint+'">ARROWS SHOW DATA FLOW DIRECTION'+(anyP2?"  ·  DASHED = PHASE 2":"")+'</text>';
+
+  return '<svg xmlns="http://www.w3.org/2000/svg" id="diagram" viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" font-family="Arial">'+s+'</svg>';
+}
+
+/* ------------------------------------------------------------------ render */
+function render(){
+  state = readState();
+  document.documentElement.setAttribute("data-theme", state.theme);
+  document.getElementById("stage").innerHTML = renderSVG(state);
+  try{ localStorage.setItem("redoStackMapper", JSON.stringify(state)); }catch(e){}
+}
+
+/* ----------------------------------------------------------------- exports */
+function fileName(ext){
+  var m = (state.merchant||"diagram").replace(/[^a-z0-9]+/gi,"-").replace(/^-|-$/g,"").toLowerCase();
+  return m + "-redo-architecture." + ext;
+}
+function download(blob, name){
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+function svgEl(){ return document.getElementById("diagram"); }
+
+function toCanvas(scale, cb){
+  var el = svgEl();
+  var w = el.viewBox.baseVal.width, h = el.viewBox.baseVal.height;
+  var data = new XMLSerializer().serializeToString(el);
+  var img = new Image();
+  img.onload = function(){
+    var cv = document.createElement("canvas");
+    cv.width = w*scale; cv.height = h*scale;
+    var ctx = cv.getContext("2d");
+    ctx.fillStyle = THEMES[state.theme].bg;
+    ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.drawImage(img,0,0,cv.width,cv.height);
+    cb(cv,w,h);
+  };
+  img.onerror = function(){ alert("Could not rasterize the diagram."); };
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(data);
+}
+
+function exportPNG(){
+  toCanvas(2, function(cv){
+    cv.toBlob(function(b){ download(b, fileName("png")); });
+  });
+}
+
+function exportPDF(){
+  var el = svgEl();
+  var w = el.viewBox.baseVal.width, h = el.viewBox.baseVal.height;
+  var jsPDFctor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+  if(!jsPDFctor){ window.print(); return; }
+  var doc = new jsPDFctor({ orientation: w>h?"landscape":"portrait", unit:"pt", format:[w*0.75, h*0.75] });
+  var vector = doc.svg || (window.svg2pdf && function(){});
+  if(doc.svg){
+    doc.svg(el, {x:0, y:0, width:w*0.75, height:h*0.75})
+      .then(function(){ doc.save(fileName("pdf")); })
+      .catch(function(){ rasterPDF(doc, w, h); });
+  } else {
+    rasterPDF(doc, w, h);
+  }
+}
+function rasterPDF(doc, w, h){
+  toCanvas(2.5, function(cv){
+    doc.addImage(cv.toDataURL("image/png"), "PNG", 0, 0, w*0.75, h*0.75);
+    doc.save(fileName("pdf"));
+  });
+}
+
+/* -------------------------------------------------------------- persistence */
+function applyState(st){
+  document.getElementById("merchant").value = st.merchant || "";
+  document.getElementById("subtitle").value = st.subtitle || "";
+  document.getElementById("prepared").value = st.prepared || "";
+  document.getElementById("footer").value   = st.footer || "";
+  theme = st.theme === "light" ? "light" : "dark";
+  var segs = document.querySelectorAll("#themeSeg button");
+  for(var i=0;i<segs.length;i++) segs[i].className = segs[i].dataset.theme===theme ? "on" : "";
+  MODULES.forEach(function(m){
+    var box = document.querySelector('#mods input[data-mod="'+m[0]+'"]');
+    if(box) box.checked = (st.modules||[]).indexOf(m[1]) >= 0;
+  });
+  buildRows(st.flows && st.flows.length ? st.flows : DEFAULT_FLOWS);
+  render();
+}
+function reset(){
+  applyState({
+    merchant:"Acme Outdoors", subtitle:"Redo integration architecture",
+    prepared:"Seth Weeks · Solutions Engineering", footer:"REDO | Private & Confidential",
+    theme:"dark",
+    modules: MODULES.filter(function(m){return m[2];}).map(function(m){return m[1];}),
+    flows: JSON.parse(JSON.stringify(DEFAULT_FLOWS))
+  });
+}
+
+/* ------------------------------------------------------------------- wiring */
+buildModules();
+
+document.addEventListener("input", function(e){
+  if(e.target.closest("aside")) render();
+});
+document.addEventListener("change", function(e){
+  if(e.target.closest("aside")) render();
+});
+document.getElementById("rows").addEventListener("click", function(e){
+  if(e.target.classList.contains("del")){ e.target.closest(".row").remove(); render(); }
+});
+document.getElementById("themeSeg").addEventListener("click", function(e){
+  var b = e.target.closest("button"); if(!b) return;
+  theme = b.dataset.theme;
+  var segs = this.querySelectorAll("button");
+  for(var i=0;i<segs.length;i++) segs[i].className = segs[i]===b ? "on" : "";
+  render();
+});
+document.getElementById("btnAdd").addEventListener("click", function(){
+  var id = "c" + Date.now();
+  document.getElementById("rows").insertAdjacentHTML("beforeend",
+    rowHTML({id:id, label:"New integration point", status:"on", sys:"", zone:"dest", method:"", dir:"out"}, true));
+  render();
+});
+document.getElementById("btnReset").addEventListener("click", function(){
+  if(confirm("Reset to the default Shopify stack?")) reset();
+});
+document.getElementById("btnSave").addEventListener("click", function(){
+  download(new Blob([JSON.stringify(readState(),null,2)],{type:"application/json"}), fileName("json"));
+});
+document.getElementById("btnLoad").addEventListener("click", function(){ document.getElementById("file").click(); });
+document.getElementById("file").addEventListener("change", function(e){
+  var f = e.target.files[0]; if(!f) return;
+  var r = new FileReader();
+  r.onload = function(){
+    try{ applyState(JSON.parse(r.result)); }
+    catch(err){ alert("That file isn't a valid Stack Mapper config."); }
+  };
+  r.readAsText(f); e.target.value = "";
+});
+document.getElementById("btnPng").addEventListener("click", exportPNG);
+document.getElementById("btnPdf").addEventListener("click", exportPDF);
+
+var saved = null;
+try{ saved = JSON.parse(localStorage.getItem("redoStackMapper")); }catch(e){}
+if(saved && saved.flows) applyState(saved); else reset();
+
+})();
+</script>
+</body>
+</html>
